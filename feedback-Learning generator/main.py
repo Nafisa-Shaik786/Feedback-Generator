@@ -1,5 +1,7 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import Dict
 import json
 
 app = FastAPI()
@@ -12,11 +14,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.post("/analyze_scores/")
-async def analyze_scores(request: Request):
-    data = await request.json()
-    scores = data["scores"]
+# ✅ Define input schema using Pydantic
+class ScoreInput(BaseModel):
+    scores: Dict[str, int]
 
+# ✅ Use input model instead of Request object
+@app.post("/analyze_scores/")
+async def analyze_scores(input: ScoreInput):
+    scores = input.scores
     weak_areas = {topic: score for topic, score in scores.items() if score < 60}
 
     with open("resources.json") as f:
@@ -39,4 +44,6 @@ def generate_weekly_plan(topics):
         week = f"Week {i // per_week + 1}"
         plan[week] = topics[i:i+per_week]
     return plan
+
+
   
