@@ -1,10 +1,22 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import Dict
 import json
+import os
+from dotenv import load_dotenv
+
+# ✅ Load environment variables from .env
+load_dotenv()
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+# ✅ Check if API key exists
+if not GEMINI_API_KEY:
+    raise ValueError("GEMINI_API_KEY not found in environment variables.")
 
 app = FastAPI()
 
-# Allow frontend to talk to backend
+# ✅ Allow frontend to talk to backend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -12,11 +24,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.post("/analyze_scores/")
-async def analyze_scores(request: Request):
-    data = await request.json()
-    scores = data["scores"]
+# ✅ Define input schema using Pydantic
+class ScoreInput(BaseModel):
+    scores: Dict[str, int]
 
+# ✅ Use input model instead of Request object
+@app.post("/analyze_scores/")
+async def analyze_scores(input: ScoreInput):
+    scores = input.scores
     weak_areas = {topic: score for topic, score in scores.items() if score < 60}
 
     with open("resources.json") as f:
@@ -29,7 +44,8 @@ async def analyze_scores(request: Request):
     return {
         "weak_areas": weak_areas,
         "learning_path": learning_path,
-        "weekly_plan": generate_weekly_plan(list(weak_areas.keys()))
+        "weekly_plan": generate_weekly_plan(list(weak_areas.keys())),
+        "api_key": GEMINI_API_KEY  # ✅ Example usage (optional)
     }
 
 def generate_weekly_plan(topics):
@@ -39,4 +55,3 @@ def generate_weekly_plan(topics):
         week = f"Week {i // per_week + 1}"
         plan[week] = topics[i:i+per_week]
     return plan
-  
